@@ -1,30 +1,19 @@
-import sys,time
+import sys, time
 import socket
 import threading
 from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, QListWidgetItem, QTextEdit, QGridLayout
 from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
-
-# subprocess.run(["python","backend.py"])
-BtnTextFont ='30px'
-host = '127.0.0.1'  # The server's hostname or IP address
-port = 65432        # The port used by the server
-
-class SocketThread(QThread):
-    new_message = pyqtSignal(str)  # Signal to emit when a new message is received
-    
-    def run(self):
-        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-            s.connect((host, port))
-            while True:
-                try:
-                    data = s.recv(1024).decode('utf-8')
-                    if data:
-                        self.new_message.emit(data)
-                except Exception as e:
-                    print(f"Error: {e}")
-                    break
-
+from backend import *
+import backend as b
+BtnTextFont = '30px'
+toggleMic = True
+prompt = "none"
+output_buffer = io.StringIO()
+class process():
+    def __init__(self):
+        pass
+        
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -40,41 +29,54 @@ class ChatWindow(QWidget):
         layout.addWidget(self.chat_list)
 
         # Input area (you can remove this if you don't need user input)
-        input_layout = QHBoxLayout()
+        self.input_layout = QHBoxLayout()
         self.message_input = QTextEdit()
         self.message_input.setFixedHeight(50)
-        input_layout.addWidget(self.message_input)
+        self.input_layout.addWidget(self.message_input)
 
-        send_button = QPushButton("Send")
-        send_button.clicked.connect(self.send_message)
-        input_layout.addWidget(send_button)
+        self.send_button = QPushButton("Send")
+        self.send_button.clicked.connect(self.send_message)
+        self.input_layout.addWidget(self.send_button)
 
-        layout.addLayout(input_layout)
+        layout.addLayout(self.input_layout)
         self.setLayout(layout)
 
         # Styling
         self.setStyleSheet("""
-            QListWidget {
+           QListWidget {
                 background-color: #1e1e1e;
                 color: white;
-                font-size: 20px;
+                font-size:20px;           
                 border: none;
             }
-            QTextEdit, QPushButton {
-                font-size: 20px;
+            QTextEdit {
+                background-color: #333333;
+                color: white;
+                border: 1px solid #ccc;
+                border-radius: 10px;
+                font-size:20px;           
+                padding: 5px;
+            }
+            QPushButton {
+                background-color: #25D366;
+                color: white;
+                border: none;
+                border-radius: 10px;
+                font-size:20px;           
+                padding: 10px;
+            }
+            QPushButton:hover {
+                background-color: #128C7E;
             }
         """)
 
-        # Start the socket thread
-        self.socket_thread = SocketThread()
-        self.socket_thread.new_message.connect(self.add_message)
-        self.socket_thread.start()
-
+       
     def send_message(self):
+        global prompt        
         # This method is kept for potential future use
         message = self.message_input.toPlainText().strip()
         if message:
-            self.add_message(message, is_sent=True)
+            prompt=message
             self.message_input.clear()
 
     def add_message(self, message, is_sent=False):
@@ -87,7 +89,8 @@ class ChatWindow(QWidget):
         self.chat_list.scrollToBottom()
 
     def create_bubble_widget(self, message, is_sent):
-        if  message.startswith("You:"):is_sent = True
+        if message.startswith("You:"):
+            is_sent = True
         widget = QWidget()
         layout = QHBoxLayout(widget)
 
@@ -102,7 +105,7 @@ class ChatWindow(QWidget):
             font-size:{BtnTextFont}
         """)
 
-        if is_sent :
+        if is_sent:
             layout.addStretch()
         layout.addWidget(bubble)
         if not is_sent:
@@ -110,14 +113,13 @@ class ChatWindow(QWidget):
 
         layout.setContentsMargins(10, 5, 10, 5)
         return widget
-    
+
 # NovaInterface with chat integration
 class NovaInterface(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
-
-        self.start_socket_thread()
+        
         
 
     def initUI(self):
@@ -145,7 +147,7 @@ class NovaInterface(QWidget):
         top_layout.addWidget(self.nova_label, 0, 1, Qt.AlignTop | Qt.AlignCenter)
 
         # Stretch settings for center and left side
-        top_layout.setColumnStretch(0, 1)  
+        top_layout.setColumnStretch(0, 1)
         top_layout.setColumnStretch(1, 5)
 
         # Microphone button
@@ -153,7 +155,8 @@ class NovaInterface(QWidget):
         self.mic_button.setIcon(QIcon('icons/mic.png'))
         self.mic_button.setIconSize(QSize(100, 100))  # Smaller icon size
         self.mic_button.setFixedSize(100, 100)  # Smaller button size
-        self.mic_button.setStyleSheet("background-color: #0088ff; border-radius: 50px;")
+        self.mic_button.setStyleSheet("""background-color: #0088ff; border-radius: 50px;""")
+        self.mic_button.clicked.connect(self.micon)
 
         # Bottom buttons layout
         self.bottom_layout = QHBoxLayout()
@@ -166,6 +169,7 @@ class NovaInterface(QWidget):
         self.text_mode_button.setStyleSheet(f"background-color: #333333; font-size:{BtnTextFont}; color: #87CEEB; padding: 5px;")
         self.text_mode_button.setIcon(QIcon('icons/keyboard.png'))
         self.text_mode_button.setIconSize(QSize(50, 50))
+        self.text_mode_button.clicked.connect(self.toggle_input_mode)  # Connect the button to the toggle method
 
         self.float_window_button = QPushButton()
         self.float_window_button.setStyleSheet(f"background-color: #333333;font-size:{BtnTextFont}; color: #87CEEB; padding: 5px;")
@@ -189,25 +193,83 @@ class NovaInterface(QWidget):
         self.main_layout.addLayout(self.bottom_layout)
 
         self.setLayout(self.main_layout)
+        self.chat_window.message_input.hide()
+        self.chat_window.send_button.hide()
 
+    def toggle_input_mode(self):
+        global toggleMic
+        # Toggle visibility of the text field and microphone button
+        if self.chat_window.message_input.isVisible():
+            self.chat_window.message_input.hide()
+            self.chat_window.send_button.hide()
+            self.mic_button.show()
+            toggleMic=True
+        else:
+            self.chat_window.message_input.show()
+            self.chat_window.send_button.show()
+            self.mic_button.hide()
+            toggleMic=False
+     
+    def micon(self):
+        if b.mic_off: 
+            b.mic_off = False
+            speak("How can I help you, Sir?")
+            self.mic_button.setIcon(QIcon('icons/mic.png'))
+            self.mic_button.setIconSize(QSize(100, 100))  
 
-    def start_socket_thread(self):
-        # Start the socket communication in a separate thread
-        self.socket_thread = SocketThread()
-        self.socket_thread.new_message.connect(self.on_new_message)  # Connect signal to a slot
-        self.socket_thread.start()
+        else: 
+            b.mic_off = True
+            self.mic_button.setIcon(QIcon('icons/mic_off.png'))
+            self.mic_button.setIconSize(QSize(30, 30))  
 
+        print("b.mic_off:"+ str(b.mic_off))
+
+            
+
+   
     def on_new_message(self, message):
         # Add received messages to the chat window
-        self.chat_window.add_message(message,is_sent=True )
+        self.chat_window.add_message(message, is_sent=True)
+
+class ChatThread(QThread):
+    message_received = pyqtSignal(str)
+    def __init__(self):
+        super().__init__()
+
+    def run(self):
+        global prompt
+        # Simulate receiving a message
+        time.sleep(1)
+        wish()
+        speak("How can I help you, Sir?")
+        if toggleMic:
+         self.message_received.emit("Listening...")
+        else:
+            self.message_received.emit("Enter your query: ")
+        while True:    
+            if toggleMic and not b.mic_off:
+                query = takecmd().lower()
+            else:
+                query = prompt
+            if query=="none":
+                continue 
+            elif toggleMic and not b.mic_off:
+                self.message_received.emit("Recognizing...") 
+            self.message_received.emit("You:"+query)
+            result = microphone(query)        
+            self.message_received.emit(result)
+            speak(result)
+            prompt ="none"
+            time.sleep(1)
+            speak("Sir, Do you have any other work")
 
 
-if __name__ == '__main__':    
+if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = NovaInterface()
     ex.show()
+    chat_thread = ChatThread()
+    chat_thread.message_received.connect(ex.chat_window.add_message)
+    chat_thread.start()
     sys.exit(app.exec_())
-    
-   
-# ms="djjkf"
-# ms.startswith("You:")
+
