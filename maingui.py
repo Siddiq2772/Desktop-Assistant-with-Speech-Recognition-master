@@ -220,15 +220,13 @@ class NovaInterface(QWidget):
         else: 
             b.mic_off = True
             self.mic_button.setIcon(QIcon('icons/mic_off.png'))
-            self.mic_button.setIconSize(QSize(30, 30))  
-
+            self.mic_button.setIconSize(QSize(30, 30))
         print("b.mic_off:"+ str(b.mic_off))
 
             
 
    
     def on_new_message(self, message):
-        # Add received messages to the chat window
         self.chat_window.add_message(message, is_sent=True)
 
 class ChatThread(QThread):
@@ -245,7 +243,7 @@ class ChatThread(QThread):
         if toggleMic:
          self.message_received.emit("Listening...")
         else:
-            self.message_received.emit("Enter your query: ")
+         self.message_received.emit("Enter your query: ")
         while True:    
             if toggleMic and not b.mic_off:
                 query = takecmd().lower()
