@@ -1,7 +1,7 @@
 import sys, time
 import socket
 import threading
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, QListWidgetItem, QTextEdit, QGridLayout
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QListWidget, QListWidgetItem, QTextEdit, QGridLayout,QScrollArea
 from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon
 from backend import *
@@ -93,24 +93,34 @@ class ChatWindow(QWidget):
             is_sent = True
         widget = QWidget()
         layout = QHBoxLayout(widget)
-
+        wid = 400
+        if bubble.width()>300:
+            wid = bubble.width()
+        message+=message+f"\n{wid}"
+        
         bubble = QLabel(message)
         bubble.setWordWrap(True)
-        bubble.setMaximumWidth(int(self.chat_list.width() * 0.7))
-        bubble.setStyleSheet(f"""
+        scroll_area = QScrollArea()
+        scroll_area.setWidget(bubble)
+        scroll_area.setWidgetResizable(True)
+        # scroll_area.setWidth(int(bubble.width()))  # Optional: Set max width for scroll area
+        # scroll_area.setFixedWidth(int(bubble.width()))
+        # scroll_area.setMinimumWidth(100)
+       
+        scroll_area.setMaximumWidth(300)
+        scroll_area.setStyleSheet(f"""
             background-color: {'#00a884' if is_sent else '#333333'};
             color: white;
             border-radius: 10px;
-            padding: 10px;
             font-size:{BtnTextFont}
         """)
 
         if is_sent:
+            layout.addStretch()  # Add stretch on the left for right alignment
+            layout.addWidget(scroll_area)
+        else:
+            layout.addWidget(scroll_area)
             layout.addStretch()
-        layout.addWidget(bubble)
-        if not is_sent:
-            layout.addStretch()
-
         layout.setContentsMargins(10, 5, 10, 5)
         return widget
 
