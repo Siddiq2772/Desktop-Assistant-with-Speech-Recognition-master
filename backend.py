@@ -29,6 +29,7 @@ def set_speech_rate(rate):
 def speak(text,speed=200):
     set_speech_rate(speed)
     engine.say(text)
+    if mic_off:return
     engine.runAndWait()
 
 # Voice to text
