@@ -8,7 +8,7 @@ import backend as b
 BtnTextFont = '25px'
 toggleMic = True
 prompt = "none"
-
+hj
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
