@@ -8,6 +8,7 @@ from comtypes import CLSCTX_ALL
 import ctypes
 from backend import *
 import backend as b
+import database as db
 BtnTextFont = '25px'
 toggleMic = True
 prompt = "none"
@@ -15,6 +16,39 @@ btnStyle = f"background-color: #333333; font-size: {BtnTextFont}; color: #87CEEB
 devices = AudioUtilities.GetSpeakers()
 interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
 volume = ctypes.cast(interface, ctypes.POINTER(IAudioEndpointVolume))
+movie = None
+ret = None
+class PopupWindow(QWidget):
+    def __init__(self, main_window):
+        super().__init__()
+        self.main_window = main_window
+        self.initUI()
+
+    def initUI(self):
+        self.setWindowTitle('NOVA')
+        self.setStyleSheet("background-color: #1e1e1e; color: #ffffff;")
+        self.setGeometry(0, 0, 300, 300)
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint | Qt.WindowStaysOnTopHint)
+
+
+        layout = QVBoxLayout()
+
+        self.mic_button = self.main_window.create_mic_button()
+        self.mic_button.clicked.connect(self.main_window.micon)
+        
+        self.show_main_button = QPushButton('Show Main Window', self)
+        self.show_main_button.clicked.connect(self.show_main_window)
+        self.show_main_button.setStyleSheet(btnStyle)
+        
+        layout.addWidget(self.mic_button)
+        layout.addWidget(self.show_main_button)
+
+        self.setLayout(layout)
+
+    def show_main_window(self):
+        self.hide()
+        self.main_window.show_main_interface()
+
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -93,6 +127,8 @@ class ChatWindow(QWidget):
         bubble_frame = QFrame()
         bubble_layout = QHBoxLayout(bubble_frame)
         if message.startswith("You:"): is_sent= True
+
+        
         bubble = QLabel(message)
         bubble.setWordWrap(True)
         bubble.setMaximumWidth(int(self.scroll_area.width() * 0.7))
@@ -118,16 +154,22 @@ class ChatWindow(QWidget):
 # NovaInterface with chat integration
 class NovaInterface(QWidget):
     def __init__(self):
+        global movie
+        movie = QMovie("icons/mic_ani.gif")
         super().__init__()
         self.initUI()
         volume.SetMute(False, None)
-
         self.chat_window.message_input.installEventFilter(self)
+        self.is_popup_mode = False
+        demo(self)
+
 
     def initUI(self):
         self.setWindowTitle('NOVA')
         self.setStyleSheet("background-color: #1e1e1e; color: #ffffff;")
         self.setGeometry(0, 0, 800, 1000)
+        self.popup = PopupWindow(self)
+
 
         # Main layout
         self.main_layout = QVBoxLayout()
@@ -153,24 +195,10 @@ class NovaInterface(QWidget):
         top_layout.setColumnStretch(0, 1)
         top_layout.setColumnStretch(1, 5)
 
-        mic_size = 250
-        self.mic_button = QPushButton(self)
-        self.mic_button.setFixedSize(mic_size*2, mic_size)  # Set the size of the button
-
-        # Create a QLabel to hold the GIF
-        self.mic_label = QLabel(self.mic_button)
-        self.mic_label.setGeometry(0, 0, mic_size*2, mic_size)  # Position the label inside the button
-
-        # Load the GIF
-        self.movie = QMovie("icons/mic_ani.gif")
-        self.mic_label.setMovie(self.movie)
-        self.mic_label.setScaledContents(True)
-        self.movie.start()
-        self.movie.finished.connect(self.movie.start)
-
-        self.mic_button.clicked.connect(self.micon)       
-    
+        self.mic_button = self.create_mic_button()       
+        self.mic_button.clicked.connect(self.micon)
         # Bottom buttons layout
+        
         self.bottom_layout = QHBoxLayout()
         history_button = QPushButton('Show Chat History')
         history_button.setStyleSheet(btnStyle)
@@ -193,6 +221,7 @@ class NovaInterface(QWidget):
         self.float_window_button.setStyleSheet(btnStyle)
         self.float_window_button.setIcon(QIcon('icons/popup_open.png'))
         self.float_window_button.setIconSize(QSize(50, 50))
+        self.float_window_button.clicked.connect(self.show_popup)
 
         self.bottom_layout.addWidget(history_button)
         self.bottom_layout.addStretch()
@@ -216,6 +245,37 @@ class NovaInterface(QWidget):
         self.chat_window.message_input.hide()
         self.chat_window.send_button.hide()
 
+        self.stacked_widget = QStackedWidget()
+        self.main_widget = QWidget()
+        self.main_widget.setLayout(self.main_layout)
+        self.stacked_widget.addWidget(self.main_widget)
+
+        self.popup_widget = QWidget()
+        popup_layout = QVBoxLayout()
+        self.popup_mic_button = self.create_mic_button()
+        self.popup_mic_button.clicked.connect(self.micon)
+        popup_layout.addWidget(self.popup_mic_button)
+        self.popup_widget.setLayout(popup_layout)
+        self.stacked_widget.addWidget(self.popup_widget)
+
+        main_layout = QVBoxLayout()
+        main_layout.addWidget(self.stacked_widget)
+        self.setLayout(main_layout)
+
+    def show_popup(self):
+        self.is_popup_mode = True
+        self.stacked_widget.setCurrentWidget(self.popup_widget)
+        self.setGeometry(0, 0, 300, 300)  # Adjust size for popup mode
+        self.setWindowFlags(Qt.Window | Qt.WindowCloseButtonHint)
+        self.show()
+
+    def show_main_interface(self):
+        self.is_popup_mode = False
+        self.stacked_widget.setCurrentWidget(self.main_widget)
+        self.showMaximized()  # Show in full screen
+        self.setWindowFlags(Qt.Window)
+        self.show()
+
     def toggle_input_mode(self):
         global toggleMic
         # Toggle visibility of the text field and microphone button
@@ -230,7 +290,30 @@ class NovaInterface(QWidget):
             self.mic_button.hide()
             toggleMic = False
             self.chat_window.add_message("Enter your Prompt:")
-    
+
+    def create_mic_button(self):
+        global movie
+        mic_size = 250
+        mic_button = QPushButton(self)
+        mic_button.setFixedSize(mic_size * 2, mic_size)
+
+        mic_label = QLabel(mic_button)
+        mic_label.setGeometry(0, 0, mic_size * 2, mic_size)
+
+        
+        mic_label.setMovie(movie)
+        mic_label.setScaledContents(True)
+        # movie.finished.connect(movie.start)
+        movie.start()
+        # movie.stop()
+        return mic_button
+
+
+
+    def show_popup(self):
+        
+        self.hide()
+        self.popup.show()
     
     def eventFilter(self, obj, event):
         if obj == self.chat_window.message_input and event.type() == event.KeyPress:
@@ -247,20 +330,19 @@ class NovaInterface(QWidget):
         return super().eventFilter(obj, event)  # Pass the event to the base class
     
     def micon(self):
+        global movie
         if b.mic_off: 
             b.mic_off = False
-            self.movie.start()
+            movie.start()
             speak("How can I help you, Sir?")
         else: 
             b.mic_off = True
-            self.mic_res()
+            movie.stop()
+            movie.jumpToFrame(0)
 
-    def mic_res(self):
-        self.movie.stop()
-        self.movie.start()
-        self.movie.stop()
+        
 
-        # print("b.mic_off:"+ str(b.mic_off))
+        print("b.mic_off:"+ str(b.mic_off))
 
     def toggle_mute(self):
         
@@ -277,18 +359,65 @@ class NovaInterface(QWidget):
         print(f"Muted: {not is_muted}")
 
     # Toggle mute/unmute
+    def sleep_(self):
+        result=CustomMessageBox.show_message(self,"Are you sure you want to Sleep your pc")
+        
+        try:
+            if result==1:
+                os.system("rundll32.exe powrprof.dll,SetSuspendState 0,1,0")
+            else:
+                ret= "Sleep canceled"
+        except Exception as e:
+            ret= f"Something Went wrong {e}"
+        self.chat_window.add_message(ret)
+        speak(ret)       
+        
+    def shutdown_(self):
+        
+        result =  CustomMessageBox.show_message(self,"Are you sure you want to shutdown your pc")
+        
+        try:
+            if result==1:
+                os.system("shutdown /s /t 0")
+            else:
+                ret= "Shutdown Cancelled"
+        except Exception as e:
+            ret= f"Something Went wrong {e}"
+        self.chat_window.add_message(ret)
+        speak(ret)
+        
+    def restart_(self):
+        result=CustomMessageBox.show_message(self,"Are you sure you want to Resatart your pc")
+        try:
+            if result == 1:
+                os.system("shutdown /r /t 0")
+            else:
+                ret= "Restart canceled"
+        except Exception as e:
+            ret= f"Something Went wrong {e}"
+        self.chat_window.add_message(ret)
+        speak(ret)
 
     
+def demo(self):
+    result = CustomMessageBox.show_message(self,"Welcome to NOVA\n\nNOVA is an AI assistant which can control your desktop based on your command.")
+
 
 
 class ChatThread(QThread):
     message_received = pyqtSignal(str)
     micon = pyqtSignal()
-    def __init__(self):
+    restart = pyqtSignal()
+    shutdown = pyqtSignal()
+    sleep = pyqtSignal()
+
+    def __init__(self,obj):
         super().__init__()
+        self.super = obj
 
     def run(self):
         global prompt
+        global ret
         # Simulate receiving a message
         wish()
         speak("How can I help you, Sir?")
@@ -305,7 +434,22 @@ class ChatThread(QThread):
                 self.micon.emit()
                 self.message_received.emit("Recognizing...") 
             self.message_received.emit("You:"+query)
-            result = microphone(query)        
+            result = input_from_gui(query,self)
+            if result =="restart_": 
+                self.restart.emit()
+                result = "restarting your computer"
+
+            if result =="shutdown_": 
+                self.shutdown.emit()
+                result = "shutdowning your computer"
+
+
+            if result =="sleep_": 
+                self.sleep.emit()
+                result = "sleeping your computer"
+
+
+
             self.message_received.emit(result)
             speak(result)
             prompt ="none"
@@ -318,11 +462,14 @@ class ChatThread(QThread):
 
 
 if __name__ == '__main__':
-    app = QApplication(sys.argv)
+    app = QApplication(sys.argv)    
     ex = NovaInterface()
     ex.show()
-    chat_thread = ChatThread()
+    chat_thread = ChatThread(ex)
     chat_thread.message_received.connect(ex.chat_window.add_message)    
     chat_thread.micon.connect(ex.micon)
+    chat_thread.restart.connect(ex.restart_)
+    chat_thread.shutdown.connect(ex.shutdown_)
+    chat_thread.sleep.connect(ex.sleep_)
     chat_thread.start()
     sys.exit(app.exec_())
