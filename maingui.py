@@ -1,13 +1,20 @@
 import sys
 import time
-from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout, QLabel, QPushButton, QTextEdit, QGridLayout, QScrollArea, QFrame
+from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout,QStackedWidget, QLabel, QPushButton, QTextEdit, QGridLayout, QScrollArea, QFrame
 from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal
-from PyQt5.QtGui import QIcon
+from PyQt5.QtGui import QIcon,QMovie
+from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from comtypes import CLSCTX_ALL
+import ctypes
 from backend import *
 import backend as b
 BtnTextFont = '25px'
 toggleMic = True
 prompt = "none"
+btnStyle = f"background-color: #333333; font-size: {BtnTextFont}; color: #87CEEB; padding: 5px; border-radius:5px"
+devices = AudioUtilities.GetSpeakers()
+interface = devices.Activate(IAudioEndpointVolume._iid_, CLSCTX_ALL, None)
+volume = ctypes.cast(interface, ctypes.POINTER(IAudioEndpointVolume))
 class ChatWindow(QWidget):
     def __init__(self):
         super().__init__()
@@ -113,6 +120,8 @@ class NovaInterface(QWidget):
     def __init__(self):
         super().__init__()
         self.initUI()
+        volume.SetMute(False, None)
+
         self.chat_window.message_input.installEventFilter(self)
 
     def initUI(self):
@@ -144,37 +153,54 @@ class NovaInterface(QWidget):
         top_layout.setColumnStretch(0, 1)
         top_layout.setColumnStretch(1, 5)
 
-        # Microphone button
-        self.mic_button = QPushButton()
-        self.mic_button.setIcon(QIcon('icons/mic.png'))
-        self.mic_button.setIconSize(QSize(100, 100))
-        self.mic_button.setFixedSize(100, 100)
-        self.mic_button.setStyleSheet("background-color: #0088ff; border-radius: 50px;")
-        self.mic_button.clicked.connect(self.micon)
+        mic_size = 250
+        self.mic_button = QPushButton(self)
+        self.mic_button.setFixedSize(mic_size*2, mic_size)  # Set the size of the button
 
+        # Create a QLabel to hold the GIF
+        self.mic_label = QLabel(self.mic_button)
+        self.mic_label.setGeometry(0, 0, mic_size*2, mic_size)  # Position the label inside the button
+
+        # Load the GIF
+        self.movie = QMovie("icons/mic_ani.gif")
+        self.mic_label.setMovie(self.movie)
+        self.mic_label.setScaledContents(True)
+        self.movie.start()
+        self.movie.finished.connect(self.movie.start)
+
+        self.mic_button.clicked.connect(self.micon)       
+    
         # Bottom buttons layout
         self.bottom_layout = QHBoxLayout()
         history_button = QPushButton('Show Chat History')
-        history_button.setStyleSheet(f"background-color: #333333; font-size: {BtnTextFont}; color: #87CEEB; padding: 5px;")
+        history_button.setStyleSheet(btnStyle)
         history_button.setIcon(QIcon('icons/menu.png'))
         history_button.setIconSize(QSize(30, 30))
 
         self.text_mode_button = QPushButton()
-        self.text_mode_button.setStyleSheet(f"background-color: #333333; font-size: {BtnTextFont}; color: #87CEEB; padding: 5px;")
+        self.text_mode_button.setStyleSheet(btnStyle)
         self.text_mode_button.setIcon(QIcon('icons/keyboard.png'))
         self.text_mode_button.setIconSize(QSize(50, 50))
         self.text_mode_button.clicked.connect(self.toggle_input_mode)
 
+        self.mute_button = QPushButton()
+        self.mute_button.setStyleSheet(btnStyle)
+        self.mute_button.setIcon(QIcon('icons/mute.png'))
+        self.mute_button.setIconSize(QSize(50, 50))
+        self.mute_button.clicked.connect(self.toggle_mute)
+
         self.float_window_button = QPushButton()
-        self.float_window_button.setStyleSheet(f"background-color: #333333; font-size: {BtnTextFont}; color: #87CEEB; padding: 5px;")
+        self.float_window_button.setStyleSheet(btnStyle)
         self.float_window_button.setIcon(QIcon('icons/popup_open.png'))
         self.float_window_button.setIconSize(QSize(50, 50))
 
         self.bottom_layout.addWidget(history_button)
         self.bottom_layout.addStretch()
+        self.bottom_layout.addStretch()
         self.bottom_layout.addWidget(self.mic_button)
         self.bottom_layout.addStretch()
         self.bottom_layout.addWidget(self.text_mode_button)
+        self.bottom_layout.addWidget(self.mute_button)
         self.bottom_layout.addWidget(self.float_window_button)
 
         # Add all sections to the main layout
@@ -223,27 +249,47 @@ class NovaInterface(QWidget):
     def micon(self):
         if b.mic_off: 
             b.mic_off = False
-            self.mic_button.setIcon(QIcon('icons/mic.png'))
-            self.mic_button.setIconSize(QSize(100, 100))  
+            self.movie.start()
             speak("How can I help you, Sir?")
-
-
         else: 
             b.mic_off = True
-            self.mic_button.setIcon(QIcon('icons/mic_off.png'))
-            self.mic_button.setIconSize(QSize(30, 30))
+            self.mic_res()
+
+    def mic_res(self):
+        self.movie.stop()
+        self.movie.start()
+        self.movie.stop()
+
         # print("b.mic_off:"+ str(b.mic_off))
+
+    def toggle_mute(self):
+        
+
+        # Get the current mute state
+        is_muted = volume.GetMute()
+        if is_muted:
+            self.mute_button.setIcon(QIcon('icons/mute.png'))
+        else:
+            self.mute_button.setIcon(QIcon('icons/unmute.png'))
+            
+        # Toggle the mute state
+        volume.SetMute(not is_muted, None)
+        print(f"Muted: {not is_muted}")
+
+    # Toggle mute/unmute
+
+    
 
 
 class ChatThread(QThread):
     message_received = pyqtSignal(str)
+    micon = pyqtSignal()
     def __init__(self):
         super().__init__()
 
     def run(self):
         global prompt
         # Simulate receiving a message
-        time.sleep(1)
         wish()
         speak("How can I help you, Sir?")
         if toggleMic:
@@ -256,6 +302,7 @@ class ChatThread(QThread):
             if query=="none":
                 continue 
             elif toggleMic and not b.mic_off:
+                self.micon.emit()
                 self.message_received.emit("Recognizing...") 
             self.message_received.emit("You:"+query)
             result = microphone(query)        
@@ -264,12 +311,18 @@ class ChatThread(QThread):
             prompt ="none"
             time.sleep(1)
             speak("Sir, Do you have any other work")
+            if toggleMic:
+                self.micon.emit()
+            time.sleep(1)
+            
+
 
 if __name__ == '__main__':
     app = QApplication(sys.argv)
     ex = NovaInterface()
     ex.show()
     chat_thread = ChatThread()
-    chat_thread.message_received.connect(ex.chat_window.add_message)
+    chat_thread.message_received.connect(ex.chat_window.add_message)    
+    chat_thread.micon.connect(ex.micon)
     chat_thread.start()
     sys.exit(app.exec_())
