@@ -114,26 +114,29 @@ def get_conversations():
         if not conversations:
             print("No conversations found for this user.")
             return
+        else:
+            return conversations
         
-        for conv in conversations:
-            # Get the encrypted data as a string
-            encrypted_user_input = conv.to_dict().get('user_input')
-            encrypted_assistant_response = conv.to_dict().get('assistant_response')
+        # for conv in conversations:
+        #     # Get the encrypted data as a string
+        #     encrypted_user_input = conv.to_dict().get('user_input')
+        #     encrypted_assistant_response = conv.to_dict().get('assistant_response')
 
-            print(f"Encrypted User Input: {encrypted_user_input}")
-            print(f"Encrypted Assistant Response: {encrypted_assistant_response}")
+        #     print(f"Encrypted User Input: {encrypted_user_input}")
+        #     print(f"Encrypted Assistant Response: {encrypted_assistant_response}")
 
-            try:
-                # Decrypt the data
-                user_input = decrypt_data(encrypted_user_input.encode('utf-8')) if isinstance(encrypted_user_input, str) else decrypt_data(encrypted_user_input)
-                assistant_response = decrypt_data(encrypted_assistant_response.encode('utf-8')) if isinstance(encrypted_assistant_response, str) else decrypt_data(encrypted_assistant_response)
+        #     try:
+        #         # Decrypt the data
+        #         user_input = decrypt_data(encrypted_user_input.encode('utf-8')) if isinstance(encrypted_user_input, str) else decrypt_data(encrypted_user_input)
+        #         assistant_response = decrypt_data(encrypted_assistant_response.encode('utf-8')) if isinstance(encrypted_assistant_response, str) else decrypt_data(encrypted_assistant_response)
                 
-                print(f"User Input: {user_input}")
-                print(f"Assistant Response: {assistant_response}")
-                print(f"Timestamp: {conv.to_dict().get('timestamp')}")
-                print("-" * 20)
-            except Exception as decryption_error:
-                print(f"Decryption error for conversation ID {conv.id}: {decryption_error}")
+        #         print(f"User Input: {user_input}")
+        #         print(f"Assistant Response: {assistant_response}")
+        #         print(f"Timestamp: {conv.to_dict().get('timestamp')}")
+        #         print("-" * 20)
+        #         return {user_input,assistant_response}
+        #     except Exception as decryption_error:
+        #         print(f"Decryption error for conversation ID {conv.id}: {decryption_error}")
 
     except Exception as e:
         print(f"Error retrieving conversations: {e}")

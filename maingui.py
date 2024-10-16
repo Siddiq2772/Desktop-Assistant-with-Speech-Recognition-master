@@ -161,7 +161,7 @@ class NovaInterface(QWidget):
         volume.SetMute(False, None)
         self.chat_window.message_input.installEventFilter(self)
         self.is_popup_mode = False
-        demo(self)
+        # demo(self)
 
 
     def initUI(self):
@@ -398,9 +398,24 @@ class NovaInterface(QWidget):
         self.chat_window.add_message(ret)
         speak(ret)
 
+    def send_message_(message):
+        number = CustomInputBox.show_input_dialog("Please provide the phone number to which I should send messages")
+        while (len(number)<=9):
+            number = CustomInputBox.show_input_dialog(f"The provided phone number have only {len(number)} digits Please Enter again")
+        
+        # speak("This process may take a few seconds and during this process i can't do any other work")
+        now = datetime.datetime.now()
+        future_time = now + datetime.timedelta(minutes=2)
+        time_hour = future_time.hour
+        time_minute = future_time.minute
+
+        country_code="+91"
+        number=f"{country_code}{number}"
+        kit.sendwhatmsg(number, message, time_hour, time_minute)
+
     
-def demo(self):
-    result = CustomMessageBox.show_message(self,"Welcome to NOVA\n\nNOVA is an AI assistant which can control your desktop based on your command.")
+# def demo(self):
+#     result = CustomMessageBox.show_message(self,"Welcome to NOVA\n\nNOVA is an AI assistant which can control your desktop based on your command.")
 
 
 
@@ -410,6 +425,7 @@ class ChatThread(QThread):
     restart = pyqtSignal()
     shutdown = pyqtSignal()
     sleep = pyqtSignal()
+    send = pyqtSignal()
 
     def __init__(self,obj):
         super().__init__()
@@ -418,6 +434,22 @@ class ChatThread(QThread):
     def run(self):
         global prompt
         global ret
+        conversations = db.get_conversations()
+        if conversations :
+            for conv in conversations:
+            # Get the encrypted data as a string
+                encrypted_user_input = conv.to_dict().get('user_input')
+                encrypted_assistant_response = conv.to_dict().get('assistant_response')
+                try:
+                # Decrypt the data
+                    user_input = db.decrypt_data(encrypted_user_input.encode('utf-8')) if isinstance(encrypted_user_input, str) else db.decrypt_data(encrypted_user_input)
+                    assistant_response = db.decrypt_data(encrypted_assistant_response.encode('utf-8')) if isinstance(encrypted_assistant_response, str) else db.decrypt_data(encrypted_assistant_response)
+                    self.message_received.emit(user_input)
+                    self.message_received.emit(assistant_response)
+                except Exception as decryption_error:
+                    print(f"Decryption error for conversation ID {conv.id}: {decryption_error}")
+
+
         # Simulate receiving a message
         wish()
         speak("How can I help you, Sir?")
@@ -448,16 +480,21 @@ class ChatThread(QThread):
                 self.sleep.emit()
                 result = "sleeping your computer"
 
-
+            if result =="sending  message": 
+                self.send.emit()
+                # result = "message send" 
 
             self.message_received.emit(result)
             speak(result)
+            db.save_conversation(query,result)
             prompt ="none"
             time.sleep(1)
             speak("Sir, Do you have any other work")
             if toggleMic:
                 self.micon.emit()
             time.sleep(1)
+
+    
             
 
 
@@ -471,5 +508,6 @@ if __name__ == '__main__':
     chat_thread.restart.connect(ex.restart_)
     chat_thread.shutdown.connect(ex.shutdown_)
     chat_thread.sleep.connect(ex.sleep_)
+    chat_thread.send.connect(ex.send_message_)
     chat_thread.start()
     sys.exit(app.exec_())

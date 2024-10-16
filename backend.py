@@ -115,19 +115,7 @@ def temperature(city):
 
 
 def send_message(message):
-    number = CustomInputBox.show_input_dialog("Please provide the phone number to which I should send messages")
-    while (len(number)<=9):
-        number = CustomInputBox.show_input_dialog(f"The provided phone number have only {len(number)} digits Please Enter again")
-    
-    # speak("This process may take a few seconds and during this process i can't do any other work")
-    now = datetime.datetime.now()
-    future_time = now + datetime.timedelta(minutes=2)
-    time_hour = future_time.hour
-    time_minute = future_time.minute
-
-    country_code="+91"
-    number=f"{country_code}{number}"
-    kit.sendwhatmsg(number, message, time_hour, time_minute)
+    return "sending  message"
 
 def incomplete_command(complete_command):
     return f"The command you provide is incomplete command, the complete {complete_command}"

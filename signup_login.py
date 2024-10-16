@@ -268,7 +268,7 @@ class Ui_MainWindow(object):
         
         if result==0:
 
-            r= ( CustomMessageBox.show_message("""Welcome to NOVA 
+            r= ( CustomMessageBox.show_message(text="""Welcome to NOVA 
 
 NOVA is your intelligent desktop assistant, designed to seamlessly control your system based on your voice and text commands. Get ready to elevate your productivity and simplify your workflow with cutting-edge AI at your fingertips.
 
@@ -286,7 +286,7 @@ Let NOVA handle the details, so you can focus on what matters!
                 subprocess.Popen(["python", "maingui.py"])  
 
         else:
-            CustomMessageBox.show_message(result,B1='Try Again',B2='none')
+            CustomMessageBox.show_message(text=result,B1='Try Again',B2='none')
             # QMessageBox.information(self.centralwidget, "Something Wrong", f"{result}")
             # print(result)
 
@@ -297,7 +297,7 @@ Let NOVA handle the details, so you can focus on what matters!
         
         
         if result==0:            
-            r= ( CustomMessageBox.show_message("""✅ Login Successful! 
+            r= ( CustomMessageBox.show_message(text="""✅ Login Successful! 
 
 Hello, [Username]! You're now connected to NOVA. Let's get things done effortlessly.
 
@@ -308,7 +308,7 @@ Hello, [Username]! You're now connected to NOVA. Let's get things done effortles
                 subprocess.Popen(["python", "maingui.py"])         
            
         else:
-            CustomMessageBox.show_message(result,B1='Try Again',B2='none')
+            CustomMessageBox.show_message(text=result,B1='Try Again',B2='none')
             # QMessageBox.information(self.centralwidget, "Something Wrong", f"{result}")
 
     def gotoSignupPage(self, event):
