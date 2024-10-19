@@ -330,13 +330,12 @@ def close_apps(app_name):
     try:
         captured_output = io.StringIO()
         sys.stdout = captured_output
-        speak(f"Closing {app_name}")
         AppOpener.close(app_name)
         sys.stdout = sys.__stdout__
-        result = captured_output.getvalue().strip()
-        
+        result = captured_output.getvalue().strip()        
         if "not running" in result:
-            return "Sorry I can't close the app due to security concern and permission issues, If the app you want to close is your current window, then try again and say close the current window"
+         return "Sorry I can't close the app due to security concern and permission issues, If the app you want to close is your current window, then try again and say close the current window"
+        return f"Closing {app_name}"   
     except Exception as e:
         return f"Something went wrong {e}"
 
