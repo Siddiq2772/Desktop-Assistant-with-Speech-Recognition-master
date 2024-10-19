@@ -4,6 +4,7 @@ from PyQt5.QtWidgets import QApplication, QWidget, QVBoxLayout, QHBoxLayout,QSta
 from PyQt5.QtCore import Qt, QSize, QThread, pyqtSignal
 from PyQt5.QtGui import QIcon,QMovie
 from pycaw.pycaw import AudioUtilities, IAudioEndpointVolume
+from PyQt5 import QtWidgets
 from comtypes import CLSCTX_ALL
 import ctypes
 from backend import *
@@ -430,9 +431,8 @@ class ChatThread(QThread):
 
     def __init__(self,obj):
         super().__init__()
-        self.super = obj
-
     def run(self):
+        flag = True
         global prompt
         global ret
         conversations = db.get_conversations()
@@ -454,10 +454,11 @@ class ChatThread(QThread):
         # Simulate receiving a message
         wish()
         speak("How can I help you, Sir?")
-        if toggleMic:
-         self.message_received.emit("Listening...")
         
         while True:    
+            if flag:
+                flag= False
+                self.message_received.emit("Listening...")
             if toggleMic and not b.mic_off:
                 query = takecmd().lower()
             else:
@@ -466,7 +467,10 @@ class ChatThread(QThread):
                 continue 
             elif toggleMic and not b.mic_off:
                 self.micon.emit()
-                self.message_received.emit("Recognizing...") 
+                flag =  True
+                self.message_received.emit("Recognizing...")
+            
+
             self.message_received.emit("You:"+query)
             result = input_from_gui(query,self)
             if result =="restart_": 
@@ -484,18 +488,22 @@ class ChatThread(QThread):
 
             if result.__contains__("sending  message"): 
                 self.send_message(result.replace("sending  message","",1))
-                
+
+                         
                 # result = "message send" 
 
             self.message_received.emit(result)
             db.save_conversation(query,result)
             speak(result)
             prompt ="none"
-            time.sleep(1)
+            if result.__contains__("Goodbye! "): 
+                QApplication.quit()
+            time.sleep(1)         
+ 
             speak("Sir, Do you have any other work")
             if toggleMic:
                 self.micon.emit()
-            time.sleep(1)
+            time.sleep(2)
         
 
     

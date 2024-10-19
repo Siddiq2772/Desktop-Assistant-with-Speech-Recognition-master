@@ -353,20 +353,16 @@ def exit_fucntion():
     
     if 5 <= now < 12:
         print ("Goodbye! Have a great day ahead!")
-        speak("Goodbye! Have a great day ahead!")
-        exit()
+        return "Goodbye! Have a great day ahead!"
     elif 12 <= now< 17:
         print("Goodbye! Have a wonderful afternoon!")
-        speak("Goodbye! Have a wonderful afternoon!")
-        exit()
+        return "Goodbye! Have a wonderful afternoon!"
     elif 17 <= now < 21:
         print("Goodbye! Have a pleasant evening!")
-        speak("Goodbye! Have a pleasant evening!")
-        exit()
+        return  "Goodbye! Have a pleasant evening!"
     else:
         print("Goodbye! Have a restful night!")
-        speak("Goodbye! Have a restful night!")
-        exit()
+        return "Goodbye! Have a restful night!"
     
 # def query_fucn(answer):
 #     return answer
